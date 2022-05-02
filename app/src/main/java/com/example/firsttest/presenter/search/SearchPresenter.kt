@@ -2,15 +2,17 @@ package com.example.firsttest.presenter.search
 
 import com.example.firsttest.model.SearchResponse
 import com.example.firsttest.presenter.PresenterContract
+import com.example.firsttest.presenter.RepositoryContract
 import com.example.firsttest.repository.GitHubRepository
+import com.example.firsttest.repository.RepositoryCallback
 import com.example.firsttest.view.ViewContract
 import com.example.firsttest.view.search.ViewSearchContract
 import retrofit2.Response
 
 internal class SearchPresenter internal constructor(
     private val viewContract: ViewSearchContract,
-    private val repository: GitHubRepository
-) : PresenterSearchContract, GitHubRepository.GitHubRepositoryCallback {
+    private val repository: RepositoryContract
+) : PresenterSearchContract, RepositoryCallback {
 
     override fun searchGitHub(searchQuery: String) {
         viewContract.displayLoading(true)
