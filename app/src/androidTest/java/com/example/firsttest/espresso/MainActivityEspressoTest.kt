@@ -1,4 +1,4 @@
-package com.example.firsttest
+package com.example.firsttest.espresso
 
 import android.view.View
 import androidx.test.core.app.ActivityScenario
@@ -11,6 +11,7 @@ import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.viewbinding.BuildConfig
+import com.example.firsttest.R
 import com.example.firsttest.view.search.MainActivity
 import org.hamcrest.Matcher
 import org.junit.After
