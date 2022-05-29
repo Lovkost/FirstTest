@@ -2,10 +2,12 @@ package com.example.firsttest.view.search
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.renderscript.Element.TYPE
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.TextView
 import android.widget.Toast
+import androidx.lifecycle.ViewModelProvider
 import androidx.viewbinding.BuildConfig
 import com.example.firsttest.R
 import com.example.firsttest.databinding.ActivityDetailsBinding
@@ -20,26 +22,58 @@ import com.example.firsttest.repository.GitHubApi
 import com.example.firsttest.repository.GitHubRepository
 import com.example.firsttest.view.ViewContract
 import com.example.firsttest.view.details.DetailsActivity
+import kotlinx.android.synthetic.main.activity_main.*
 import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.*
 
 class MainActivity : AppCompatActivity(), ViewSearchContract {
-    private lateinit var binding: ActivityMainBinding
+
     private val adapter = SearchResultAdapter()
-    private val presenter: PresenterSearchContract = SearchPresenter(this, createRepository())
+    private val viewModel: SearchViewModel by lazy {
+        ViewModelProvider(this).get(SearchViewModel::class.java)
+    }
     private var totalCount: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        val view = binding.root
-        setContentView(view)
+        setContentView(R.layout.activity_main)
         setUI()
+        viewModel.subscribeToLiveData().observe(this) { onStateChange(it) }
+    }
+
+    private fun onStateChange(screenState: ScreenState) {
+        when (screenState) {
+            is ScreenState.Working -> {
+                val searchResponse = screenState.searchResponse
+                val totalCount = searchResponse.totalCount
+                progressBar.visibility = View.GONE
+                with(totalCountTextView) {
+                    visibility = View.VISIBLE
+                    text =
+                        String.format(
+                            Locale.getDefault(),
+                            getString(R.string.results_count),
+                            totalCount
+                        )
+                }
+
+                this.totalCount = totalCount!!
+                adapter.updateResults(searchResponse.searchResults!!)
+            }
+            is ScreenState.Loading -> {
+                progressBar.visibility = View.VISIBLE
+            }
+            is ScreenState.Error -> {
+                progressBar.visibility = View.GONE
+                Toast.makeText(this, screenState.error.message, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setUI() {
-        binding.toDetailsActivityButton.setOnClickListener {
+        toDetailsActivityButton.setOnClickListener {
             startActivity(DetailsActivity.getIntent(this, totalCount))
         }
         setQueryListener()
@@ -47,16 +81,16 @@ class MainActivity : AppCompatActivity(), ViewSearchContract {
     }
 
     private fun setRecyclerView() {
-        binding.recyclerView.setHasFixedSize(true)
-        binding.recyclerView.adapter = adapter
+        recyclerView.setHasFixedSize(true)
+        recyclerView.adapter = adapter
     }
 
     private fun setQueryListener() {
-        binding.searchEditText.setOnEditorActionListener(TextView.OnEditorActionListener { _, actionId, _ ->
+        searchEditText.setOnEditorActionListener(TextView.OnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                val query = binding.searchEditText.text.toString()
+                val query = searchEditText.text.toString()
                 if (query.isNotBlank()) {
-                    presenter.searchGitHub(query)
+                    viewModel.searchGitHub(query)
                     return@OnEditorActionListener true
                 } else {
                     Toast.makeText(
@@ -72,7 +106,7 @@ class MainActivity : AppCompatActivity(), ViewSearchContract {
     }
 
     private fun createRepository(): RepositoryContract {
-        return if (BuildConfig.BUILD_TYPE == FAKE) {
+        return if (BuildConfig.TYPE == FAKE) {
             FakeGitHubRepository()
         } else {
             GitHubRepository(createRetrofit().create(GitHubApi::class.java))
@@ -82,6 +116,7 @@ class MainActivity : AppCompatActivity(), ViewSearchContract {
     private fun createRetrofit(): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
@@ -90,7 +125,7 @@ class MainActivity : AppCompatActivity(), ViewSearchContract {
         searchResults: List<SearchResult>,
         totalCount: Int
     ) {
-        with(binding.totalCountTextView) {
+        with(totalCountTextView) {
             visibility = View.VISIBLE
             text =
                 String.format(Locale.getDefault(), getString(R.string.results_count), totalCount)
@@ -110,9 +145,9 @@ class MainActivity : AppCompatActivity(), ViewSearchContract {
 
     override fun displayLoading(show: Boolean) {
         if (show) {
-            binding.progressBar.visibility = View.VISIBLE
+            progressBar.visibility = View.VISIBLE
         } else {
-            binding.progressBar.visibility = View.GONE
+            progressBar.visibility = View.GONE
         }
     }
 
